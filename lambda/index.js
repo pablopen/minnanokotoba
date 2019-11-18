@@ -29,7 +29,7 @@ const languageStrings = {
     translation: {
       LESSONS: lessons,
       SKILL_NAME: 'Minna no kotoba',
-      WELCOME_MESSAGE: 'Bienvenido a %s. Puedes preguntar por un tema como, tema 1... Now, what can I help you with?',
+      WELCOME_MESSAGE: 'Bienvenido a %s. Puedes preguntar por el vocabulario de los diferentes temas, por ejemplo, tema 1... ¿Que lección quieres escuchar?',
       WELCOME_REPROMPT: 'Para obtener ayuda puedes decir, ayuda',
       HELP_MESSAGE: 'Puedes preguntar cosas como tema 1, capítulo 5, vocabulario del tema 2... En que puedo ayudarte?',
       HELP_REPROMPT: 'Puedes preguntar cosas como tema 1, capítulo 5, vocabulario del tema 2... En que puedo ayudarte?',
@@ -43,22 +43,46 @@ const languageStrings = {
 };
 
 function getSpeech(words, translations) {
-  if (words.length !== translations.length) {
-    console.log('Words length different from translations length!!');
-    return;
-  }
-
   let speech = '';
   const JAPANESE_VOICES = ['Mizuki', 'Takumi'];
-  const japaneseSpeechOpen =  '<voice name='+ JAPANESE_VOICES[0] + '><lang xml:lang="ja-JP">';
+  const japaneseSpeechOpen =  '<voice name="'+ JAPANESE_VOICES[0] + '"><lang xml:lang="ja-JP">';
   const japaneseSpeechClose =  '</lang></voice>';
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
-    const translation  = translations[i];
-    speech += japaneseSpeechOpen + word.word + japaneseSpeechClose + translation + '.\n';
+    const translation  = translations[word.id];
+    speech += '' + japaneseSpeechOpen + word.word + japaneseSpeechClose + translation + '.\n';
   }
 
   return speech;
+}
+
+function launchErrorMessage(params) {
+  console.log('Error message');
+  const {
+    requestAttributes,
+    lessonNumber,
+    sessionAttributes,
+    handlerInput
+  } = params;
+  const repromptSpeech = requestAttributes.t('LESSON_NOT_FOUND_REPROMPT');
+  let speakOutput = '';
+  if (lessonNumber) {
+    speakOutput += requestAttributes.t('LESSON_NOT_FOUND_WITH_LESSON_NUMBER', lessonNumber);
+  } else {
+    speakOutput += requestAttributes.t('LESSON_NOT_FOUND_WITHOUT_LESSON_NUMBER');
+  }
+  speakOutput += repromptSpeech;
+
+  // save outputs to attributes, so we can use it to repeat
+  sessionAttributes.speakOutput = speakOutput;
+  sessionAttributes.repromptSpeech = repromptSpeech;
+
+  handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
+
+  return handlerInput.responseBuilder
+    .speak(sessionAttributes.speakOutput)
+    .reprompt(sessionAttributes.repromptSpeech)
+    .getResponse();
 }
 
 /* INTENT HANDLERS */
@@ -90,51 +114,48 @@ const PlayLessonHandler = {
   handle(handlerInput) {
     const requestAttributes = handlerInput.attributesManager.getRequestAttributes();
     const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
-
-    const lessonSlot = handlerInput.requestEnvelope.request.intent.slots.Item;
+    console.log('Play lesson intent')
+    const lessonSlot = handlerInput.requestEnvelope.request.intent.slots.lessonNumber;
     let lessonNumber;
-    if (lessonSlot && lessonSlot.value) {
-      lessonNumber =  parseInt(lessonSlot.value, 10);
+    console.log('lessonSlot', lessonSlot)
+    if (!lessonSlot || !lessonSlot.value) {
+      const paramErrorMsg = {
+        requestAttributes,
+        lessonNumber,
+        sessionAttributes,
+        handlerInput
+      };
+      return launchErrorMessage(paramErrorMsg);
     }
-
+    
+    lessonNumber =  parseInt(lessonSlot.value, 10);
+    console.log('lessonNumber', lessonNumber)
     //const cardTitle = requestAttributes.t('DISPLAY_CARD_TITLE', requestAttributes.t('SKILL_NAME'), itemName);
-    const myLessons = requestAttributes.t('LESSONS');
+    const myLessons = lessons;//requestAttributes.t('LESSONS');
     const lesson = myLessons[lessonNumber -1];
-    let speakOutput = '';
+    if (!lesson) {
+      const paramErrorMsg = {
+        requestAttributes,
+        lessonNumber,
+        sessionAttributes,
+        handlerInput
+      };
 
-    if (lesson) {
-      //TODO change lesson;
-      sessionAttributes.speakOutput = getSpeech(lesson1, lesson1Es);
-      
-      // uncomment the _2_ reprompt lines if you want to repeat the info
-      // and prompt for a subsequent action
-      // sessionAttributes.repromptSpeech = requestAttributes.t('RECIPE_REPEAT_MESSAGE');
-      handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
-
-      return handlerInput.responseBuilder
-        .speak(sessionAttributes.speakOutput)
-        // .reprompt(sessionAttributes.repromptSpeech)
-        //.withSimpleCard(cardTitle, recipe)
-        .getResponse();
+      return launchErrorMessage(paramErrorMsg);
     }
-
-    const repromptSpeech = requestAttributes.t('LESSON_NOT_FOUND_REPROMPT');
-    if (lessonNumber) {
-      speakOutput += requestAttributes.t('LESSON_NOT_FOUND_WITH_LESSON_NUMBER', lessonNumber);
-    } else {
-      speakOutput += requestAttributes.t('LESSON_NOT_FOUND_WITHOUT_LESSON_NUMBER');
-    }
-    speakOutput += repromptSpeech;
-
-    // save outputs to attributes, so we can use it to repeat
-    sessionAttributes.speakOutput = speakOutput;
-    sessionAttributes.repromptSpeech = repromptSpeech;
-
+    
+    //TODO change lesson;
+    sessionAttributes.speakOutput = getSpeech(lesson1.values, lesson1Es);
+    
+    // uncomment the _2_ reprompt lines if you want to repeat the info
+    // and prompt for a subsequent action
+    // sessionAttributes.repromptSpeech = requestAttributes.t('RECIPE_REPEAT_MESSAGE');
     handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
 
     return handlerInput.responseBuilder
       .speak(sessionAttributes.speakOutput)
-      .reprompt(sessionAttributes.repromptSpeech)
+      // .reprompt(sessionAttributes.repromptSpeech)
+      //.withSimpleCard(cardTitle, recipe)
       .getResponse();
   },
 };

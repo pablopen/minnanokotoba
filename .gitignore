@@ -1,2 +1,5 @@
 # Ignore node_modules inside lambda
 lambda/node_modules
+
+# Ignore generated zips
+*.zip
