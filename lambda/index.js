@@ -2,16 +2,21 @@
 /* eslint-disable  no-console */
 
 const Alexa = require('ask-sdk-core');
-const lesson1 = require('./lessons/lesson1');
-const lesson1Es = require('./lessons/lesson1.es-ES');
 const i18n = require('i18next');
 const sprintf = require('i18next-sprintf-postprocessor');
 
-const lessons = [lesson1];
+const utils = require('./utils');
+
+const lessons = require('./lessons');
+const translationsES = require('./translations/es');
+
+const JAPANESE_VOICES = ['Mizuki', 'Takumi'];
+
 const languageStrings = {
   /* 'en': {
     translation: {
       LESSONS: lessons,
+      ERROR_PROMPT: 'Sorry, I can\'t understand the command. Please say again.'
       SKILL_NAME: 'Minna no kotoba',
       WELCOME_MESSAGE: 'Welcome to %s. You can ask a question like, what\'s the recipe for a %s? ... Now, what can I help you with?',
       WELCOME_REPROMPT: 'For instructions on what you can say, please say help me.',
@@ -27,30 +32,34 @@ const languageStrings = {
   }, */
   'es': {
     translation: {
+      END_PLAYING_LESSON: 'Fin del vocabulario del tema %s',
+      ERROR_PROMPT: 'Lo siento, no he podido entender la orden. ¿Me la podrías repetir?',
       LESSONS: lessons,
-      SKILL_NAME: 'Minna no kotoba',
-      WELCOME_MESSAGE: 'Bienvenido a %s. Puedes preguntar por el vocabulario de los diferentes temas, por ejemplo, tema 1... ¿Que lección quieres escuchar?',
-      WELCOME_REPROMPT: 'Para obtener ayuda puedes decir, ayuda',
-      HELP_MESSAGE: 'Puedes preguntar cosas como tema 1, capítulo 5, vocabulario del tema 2... En que puedo ayudarte?',
-      HELP_REPROMPT: 'Puedes preguntar cosas como tema 1, capítulo 5, vocabulario del tema 2... En que puedo ayudarte?',
-      STOP_MESSAGE: 'Hasta la próxima!',
-      REPEAT_MESSAGE: 'Prueba a decir repetir.',
-      LESSON_NOT_FOUND_WITH_LESSON_NUMBER: 'Lo siento, actualmente no conozco el tema %s.',
+      LESSON_NOT_FOUND_WITH_LESSON_NUMBER: 'Lo siento, actualmente no conozco el tema %s',
       LESSON_NOT_FOUND_WITHOUT_LESSON_NUMBER: 'Lo siento, no conozco ese tema',
       LESSON_NOT_FOUND_REPROMPT: '¿Que más puedo hacer por ti?',
+      PLAYING_LESSON: 'Reproduciendo el vocabulario del tema %s',
+      REPEAT_MESSE: 'Prueba a decir repetir',
+      SKILL_NAME: '<lang xml:lang="ja-JP">Minna no kotoba</lang>',
+      STOP_MESSAGE: '¡Hasta la próxima!',
+      TRANSLATIONS: translationsES,
+      WELCOME_MESSAGE: 'Bienvenido a %s. Puedes preguntar por el vocabulario de los diferentes temas como por ejemplo, tema 1... ¿Que lección quieres escuchar?',
+      WELCOME_REPROMPT: 'Para obtener ayuda puedes decir, ayuda',
+      HELP_MESSAGE: 'Puedes preguntar cosas como tema 1, capítulo 5, vocabulario del tema 2... ¿En que puedo ayudarte?',
+      HELP_REPROMPT: 'Puedes preguntar cosas como tema 1, capítulo 5, vocabulario del tema 2... ¿En que puedo ayudarte?',
     },
   },
 };
 
 function getSpeech(words, translations) {
   let speech = '';
-  const JAPANESE_VOICES = ['Mizuki', 'Takumi'];
-  const japaneseSpeechOpen =  '<voice name="'+ JAPANESE_VOICES[0] + '"><lang xml:lang="ja-JP">';
-  const japaneseSpeechClose =  '</lang></voice>';
+
   for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    const translation  = translations[word.id];
-    speech += '' + japaneseSpeechOpen + word.word + japaneseSpeechClose + translation + '.\n';
+    const wordObj = words[i];
+    const translation  = translations[wordObj.id];
+    const japaneseVoice = getRandomItem(JAPANESE_VOICES);
+    const japaneseWord = utils.getInOtherVoiceInJapanese(wordObj.word, japaneseVoice);
+    speech += japaneseWord + translation + '<break time="1s"/>';
   }
 
   return speech;
@@ -114,10 +123,9 @@ const PlayLessonHandler = {
   handle(handlerInput) {
     const requestAttributes = handlerInput.attributesManager.getRequestAttributes();
     const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
-    console.log('Play lesson intent')
+
     const lessonSlot = handlerInput.requestEnvelope.request.intent.slots.lessonNumber;
     let lessonNumber;
-    console.log('lessonSlot', lessonSlot)
     if (!lessonSlot || !lessonSlot.value) {
       const paramErrorMsg = {
         requestAttributes,
@@ -129,10 +137,9 @@ const PlayLessonHandler = {
     }
     
     lessonNumber =  parseInt(lessonSlot.value, 10);
-    console.log('lessonNumber', lessonNumber)
     //const cardTitle = requestAttributes.t('DISPLAY_CARD_TITLE', requestAttributes.t('SKILL_NAME'), itemName);
-    const myLessons = lessons;//requestAttributes.t('LESSONS');
-    const lesson = myLessons[lessonNumber -1];
+    
+    const lesson = lessons[lessonNumber -1];
     if (!lesson) {
       const paramErrorMsg = {
         requestAttributes,
@@ -144,8 +151,13 @@ const PlayLessonHandler = {
       return launchErrorMessage(paramErrorMsg);
     }
     
-    //TODO change lesson;
-    sessionAttributes.speakOutput = getSpeech(lesson1.values, lesson1Es);
+    const myTranslations = requestAttributes.t('TRANSLATIONS');
+    const translation = myTranslations[lessonNumber -1];
+    let speechOutput = requestAttributes.t('PLAYING_LESSON', lessonNumber);
+    speechOutput += getSpeech(lesson.values, translation);
+    speechOutput += requestAttributes.t('END_PLAYING_LESSON', lessonNumber);
+
+    sessionAttributes.speakOutput = speechOutput;
     
     // uncomment the _2_ reprompt lines if you want to repeat the info
     // and prompt for a subsequent action
@@ -228,11 +240,13 @@ const ErrorHandler = {
     return true;
   },
   handle(handlerInput, error) {
-    console.log(`Error handled: ${error.message}`);
+    console.log("==== ERROR ======");
+    console.log(error);
 
+    const requestAttributes = handlerInput.attributesManager.getRequestAttributes();
     return handlerInput.responseBuilder
-      .speak('Sorry, I can\'t understand the command. Please say again.')
-      .reprompt('Sorry, I can\'t understand the command. Please say again.')
+      .speak(requestAttributes.t('ERROR_PROMPT'))
+      .reprompt(requestAttributes.t('ERROR_PROMPT'))
       .getResponse();
   },
 };
@@ -278,6 +292,3 @@ exports.handler = skillBuilder
   .addRequestInterceptors(LocalizationInterceptor)
   .addErrorHandlers(ErrorHandler)
   .lambda();
-
-// langauge strings for localization
-// TODO: The items below this comment need your attention
