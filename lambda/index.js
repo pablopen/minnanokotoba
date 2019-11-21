@@ -154,7 +154,7 @@ const PlayLessonHandler = {
     const myTranslations = requestAttributes.t('TRANSLATIONS');
     const translation = myTranslations[lessonNumber -1];
     let speechOutput = requestAttributes.t('PLAYING_LESSON', lessonNumber);
-    speechOutput += getSpeech(lesson.values, translation);
+    speechOutput += getSpeech(lesson, translation);
     speechOutput += requestAttributes.t('END_PLAYING_LESSON', lessonNumber);
 
     sessionAttributes.speakOutput = speechOutput;
