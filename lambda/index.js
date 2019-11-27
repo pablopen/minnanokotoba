@@ -11,6 +11,8 @@ const lessons = require('./lessons');
 const translationsES = require('./translations/es');
 
 const JAPANESE_VOICES = ['Mizuki', 'Takumi'];
+const MIN_LESSON = 1;
+const MAX_LESSON = 32;
 
 const languageStrings = {
   /* 'en': {
@@ -36,17 +38,17 @@ const languageStrings = {
       ERROR_PROMPT: 'Lo siento, no he podido entender la orden. ¿Me la podrías repetir?',
       LESSONS: lessons,
       LESSON_NOT_FOUND_WITH_LESSON_NUMBER: 'Lo siento, actualmente no conozco el tema %s',
-      LESSON_NOT_FOUND_WITHOUT_LESSON_NUMBER: 'Lo siento, no conozco ese tema',
+      LESSON_NOT_FOUND_WITHOUT_LESSON_NUMBER: 'Lo siento, he podido entender el tema que quieres reproducir',
       LESSON_NOT_FOUND_REPROMPT: '¿Que más puedo hacer por ti?',
       PLAYING_LESSON: 'Reproduciendo el vocabulario del tema %s',
       REPEAT_MESSE: 'Prueba a decir repetir',
       SKILL_NAME: '<lang xml:lang="ja-JP">Minna no kotoba</lang>',
       STOP_MESSAGE: '¡Hasta la próxima!',
       TRANSLATIONS: translationsES,
-      WELCOME_MESSAGE: 'Bienvenido a %s. Puedes preguntar por el vocabulario de los diferentes temas como por ejemplo, tema 1... ¿Que lección quieres escuchar?',
+      WELCOME_MESSAGE: 'Bienvenido a %s. Puedes preguntar por el vocabulario de los diferentes temas como por ejemplo, tema %s... ¿Que lección quieres escuchar?',
       WELCOME_REPROMPT: 'Para obtener ayuda puedes decir, ayuda',
-      HELP_MESSAGE: 'Puedes preguntar cosas como tema 1, capítulo 5, vocabulario del tema 2... ¿En que puedo ayudarte?',
-      HELP_REPROMPT: 'Puedes preguntar cosas como tema 1, capítulo 5, vocabulario del tema 2... ¿En que puedo ayudarte?',
+      HELP_MESSAGE: 'Tengo vocabulario desde el tema '+ MIN_LESSON + ' al '+ MAX_LESSON+'.Puedes preguntar cosas como tema %s, capítulo %s, vocabulario del tema %s... ¿En que puedo ayudarte?',
+      HELP_REPROMPT: 'Tengo vocabulario desde el tema '+ MIN_LESSON + ' al '+ MAX_LESSON+'.Puedes preguntar cosas como tema %s, capítulo %s, vocabulario del tema %s... ¿En que puedo ayudarte?',
     },
   },
 };
@@ -103,7 +105,7 @@ const LaunchRequestHandler = {
     const requestAttributes = handlerInput.attributesManager.getRequestAttributes();
     const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
 
-    const speakOutput = requestAttributes.t('WELCOME_MESSAGE', requestAttributes.t('SKILL_NAME'));
+    const speakOutput = requestAttributes.t('WELCOME_MESSAGE', requestAttributes.t('SKILL_NAME'), getRandomInt(MIN_LESSON, MAX_LESSON));
     const repromptOutput = requestAttributes.t('WELCOME_REPROMPT');
 
     handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
@@ -181,10 +183,12 @@ const HelpHandler = {
     const requestAttributes = handlerInput.attributesManager.getRequestAttributes();
     const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
 
-    //const item = requestAttributes.t(getRandomItem(Object.keys(recipes.RECIPE_EN_US)));
+    const randLesson1 =getRandomInt(MIN_LESSON, MAX_LESSON);
+    const randLesson2 =getRandomInt(MIN_LESSON, MAX_LESSON);
+    const randLesson3 =getRandomInt(MIN_LESSON, MAX_LESSON);
 
-    sessionAttributes.speakOutput = requestAttributes.t('HELP_MESSAGE');
-    sessionAttributes.repromptSpeech = requestAttributes.t('HELP_REPROMPT');
+    sessionAttributes.speakOutput = requestAttributes.t('HELP_MESSAGE', randLesson1, randLesson2, randLesson3);
+    sessionAttributes.repromptSpeech = requestAttributes.t('HELP_REPROMPT', randLesson1, randLesson2, randLesson3);
 
     return handlerInput.responseBuilder
       .speak(sessionAttributes.speakOutput)
@@ -276,6 +280,13 @@ function getRandomItem(arrayOfItems) {
   let i = 0;
   i = Math.floor(Math.random() * arrayOfItems.length);
   return (arrayOfItems[i]);
+}
+
+// getRandomInt
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 /* LAMBDA SETUP */
