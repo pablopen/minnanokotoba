@@ -30,7 +30,7 @@ module.exports = [
     require('./lesson29'),
     require('./lesson30'),
     require('./lesson31'),
-    require('./lesson32'),
+    require('./lesson32')/*,
     require('./lesson33'),
     require('./lesson34'),
     require('./lesson35'),
@@ -48,5 +48,5 @@ module.exports = [
     require('./lesson47'),
     require('./lesson48'),
     require('./lesson49'),
-    require('./lesson50')
+    require('./lesson50')*/
 ];
